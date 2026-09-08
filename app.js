@@ -1650,186 +1650,208 @@ function attendanceSettings() {
    ========================================================= */
 
 function exportBackup() {
-
   try {
-
     const payload = {
-
       ...data,
-
-      exportedAt:
-        new Date().toISOString(),
-
-      app:
-        "Instituto Banka"
-
+      exportedAt: new Date().toISOString(),
+      app: "Instituto Banka"
     };
 
-    const json =
-      JSON.stringify(
-        payload,
-        null,
-        2
-      );
+    const json = JSON.stringify(payload);
+    const backup = "INSTITUTO_BANKA_BACKUP|" + btoa(
+      unescape(encodeURIComponent(json))
+    );
 
-    const date =
-      new Date()
-        .toISOString()
-        .slice(0,10);
+    const modal = document.createElement("div");
+    modal.className = "backup-modal";
 
-    const filename =
-      `instituto-banka-backup-${date}.json`;
+    modal.innerHTML = `
+      <div class="backup-box">
+        <h2>📤 Exportar Backup</h2>
 
+        <p>
+          Copie o código abaixo e guarde-o em um lugar seguro.
+        </p>
 
-    /*
-     * KODULAR
-     *
-     * Se estiver dentro do WebViewer do Kodular,
-     * envia o JSON para o aplicativo.
-     */
+        <textarea
+          id="backupExportText"
+          readonly
+          spellcheck="false"
+        ></textarea>
 
-    if(
-      window.Kodular &&
-      typeof window.Kodular.setWebViewString === "function"
-    ) {
+        <div class="backup-buttons">
+          <button id="copyBackupBtn">
+            📋 Copiar Backup
+          </button>
 
-      window.Kodular.setWebViewString(
-        "INSTITUTO_BANKA_EXPORT|" + json
-      );
+          <button id="closeBackupBtn">
+            Fechar
+          </button>
+        </div>
+      </div>
+    `;
 
-      showToast(
-        "Backup preparado para o Kodular."
-      );
+    document.body.appendChild(modal);
 
-      return;
-    }
+    const textarea = document.getElementById("backupExportText");
+    textarea.value = backup;
 
+    document.getElementById("copyBackupBtn").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(backup);
 
-    /*
-     * NAVEGADOR NORMAL
-     *
-     * Mantém o download tradicional.
-     */
+        showToast("Backup copiado!");
 
-    const blob =
-      new Blob(
-        [json],
-        {
-          type:
-            "application/json"
+      } catch (error) {
+        textarea.focus();
+        textarea.select();
+
+        try {
+          document.execCommand("copy");
+          showToast("Backup copiado!");
+        } catch (e) {
+          showToast("Selecione e copie o backup manualmente.");
         }
-      );
+      }
+    };
 
-    const url =
-      URL.createObjectURL(blob);
+    document.getElementById("closeBackupBtn").onclick = () => {
+      modal.remove();
+    };
 
-    const a =
-      document.createElement("a");
-
-    a.href = url;
-
-    a.download =
-      filename;
-
-    document.body.appendChild(a);
-
-    a.click();
-
-    a.remove();
-
-    setTimeout(
-      () =>
-        URL.revokeObjectURL(url),
-      1000
-    );
-
-    showToast(
-      "Backup exportado."
-    );
-
-
-  } catch(error) {
-
-    console.error(
-      "Erro ao exportar:",
-      error
-    );
-
-    showToast(
-      "Erro ao preparar o backup."
-    );
+  } catch (error) {
+    console.error("Erro ao exportar backup:", error);
+    showToast("Erro ao criar o backup.");
   }
 }
+function importBackup() {
+
+  const modal = document.createElement("div");
+  modal.className = "backup-modal";
+
+  modal.innerHTML = `
+    <div class="backup-box">
+      <h2>📥 Importar Backup</h2>
+
+      <p>
+        Cole abaixo o código do backup que você exportou anteriormente.
+      </p>
+
+      <textarea
+        id="backupImportText"
+        placeholder="Cole o código do backup aqui..."
+        spellcheck="false"
+      ></textarea>
+
+      <div class="backup-buttons">
+
+        <button id="pasteBackupBtn">
+          📋 Colar
+        </button>
+
+        <button id="importBackupBtn">
+          📥 Importar
+        </button>
+
+        <button id="cancelBackupBtn">
+          Cancelar
+        </button>
+
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const textarea = document.getElementById("backupImportText");
+
+  document.getElementById("pasteBackupBtn").onclick = async () => {
+
+    try {
+
+      const text = await navigator.clipboard.readText();
+
+      textarea.value = text;
+
+      showToast("Backup colado!");
+
+    } catch (error) {
+
+      textarea.focus();
+
+      showToast("Cole o backup manualmente.");
+
+    }
+
+  };
 
 
-function importBackup(file) {
+  document.getElementById("importBackupBtn").onclick = () => {
 
-  if(!file)
-    return;
+    try {
 
-  const reader =
-    new FileReader();
+      const backup = textarea.value.trim();
 
-  reader.onload =
-    e => {
-
-      try {
-
-        const parsed =
-          JSON.parse(
-            e.target.result
-          );
-
-        if(
-          !parsed ||
-          !Array.isArray(parsed.students) ||
-          !Array.isArray(parsed.products) ||
-          !Array.isArray(parsed.rules)
-        ) {
-
-          throw new Error(
-            "Formato inválido"
-          );
-        }
-
-        if(
-          !confirm(
-            "Importar este backup substituirá os dados atuais deste dispositivo. Continuar?"
-          )
-        )
-          return;
-
-        data =
-          normalize(parsed);
-
-        currentStudentId =
-          null;
-
-        save();
-
-        showView(
-          "dashboardView"
-        );
-
-        showToast(
-          "Backup importado com sucesso."
-        );
-
-      } catch(err) {
-
-        console.error(err);
-
-        alert(
-          "Não foi possível importar o arquivo. Certifique-se de que ele é um backup válido do Instituto Banka."
-        );
-
+      if (!backup) {
+        showToast("Cole o backup primeiro.");
+        return;
       }
 
-      $("importFile").value = "";
+      if (!backup.startsWith("INSTITUTO_BANKA_BACKUP|")) {
+        showToast("Backup inválido.");
+        return;
+      }
 
-    };
+      const encoded = backup.replace(
+        "INSTITUTO_BANKA_BACKUP|",
+        ""
+      );
 
-  reader.readAsText(file);
+      const json = decodeURIComponent(
+        escape(atob(encoded))
+      );
+
+      const importedData = JSON.parse(json);
+
+      if (!importedData || typeof importedData !== "object") {
+        throw new Error("Dados inválidos.");
+      }
+
+      if (
+        !Array.isArray(importedData.students) ||
+        !Array.isArray(importedData.products) ||
+        !Array.isArray(importedData.rules)
+      ) {
+        throw new Error("Backup incompatível.");
+      }
+
+      data = importedData;
+
+      saveData();
+
+      modal.remove();
+
+      showToast("Backup importado com sucesso!");
+
+      render();
+
+    } catch (error) {
+
+      console.error("Erro ao importar:", error);
+
+      showToast(
+        "Não foi possível importar esse backup."
+      );
+
+    }
+
+  };
+
+
+  document.getElementById("cancelBackupBtn").onclick = () => {
+    modal.remove();
+  };
+
 }
 
 function resetData() {
