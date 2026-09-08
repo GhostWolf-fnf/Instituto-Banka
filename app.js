@@ -1,1317 +1,3161 @@
 const STORAGE_KEY = "instituto_banka_v1";
 
-const uid = () => {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
-};
-
 const DEFAULT_DATA = {
+  version: 1,
+
+  settings: {
+    attendanceForStar: 5,
+    currency: "BRL"
+  },
+
   students: [],
+
   products: [],
+
   rules: [
-    {id:uid(),name:"Presença",description:"Participar da aula",value:5},
-    {id:uid(),name:"Estudo das escrituras",description:"Estudar as escrituras",value:10},
-    {id:uid(),name:"Memorizar escritura",description:"Memorizar uma escritura",value:15},
-    {id:uid(),name:"Ir à igreja",description:"Participar da reunião",value:10},
-    {id:uid(),name:"Convidar amigo",description:"Convidar um amigo para o Instituto",value:20}
-  ],
-  attendanceGoal:5
+    {
+      id: crypto.randomUUID(),
+      name: "Estudou a aula",
+      amount: 10,
+      icon: "📖",
+      active: true
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Decorou uma escritura",
+      amount: 10,
+      icon: "📜",
+      active: true
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Foi à igreja",
+      amount: 30,
+      icon: "⛪",
+      active: true
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Convidou um amigo",
+      amount: 50,
+      icon: "🧑‍🤝‍🧑",
+      active: true
+    }
+  ]
 };
 
-let data = load();
+
+let data = loadData();
 let currentStudentId = null;
 
-const $ = id => document.getElementById(id);
 
-function cloneDefault(){
-  return JSON.parse(JSON.stringify(DEFAULT_DATA));
+const $ = id =>
+  document.getElementById(id);
+
+
+const uid = () =>
+  crypto.randomUUID
+    ? crypto.randomUUID()
+    : Date.now() + "-" + Math.random();
+
+
+const money = value =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: data.settings.currency || "BRL"
+  }).format(Number(value) || 0);
+
+
+const escapeHtml = str =>
+  String(str ?? "").replace(
+    /[&<>"']/g,
+    c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    }[c])
+  );
+
+
+const initials = name =>
+  String(name || "?")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(x => x[0])
+    .join("")
+    .toUpperCase();
+
+
+function cloneDefault() {
+
+  return JSON.parse(
+    JSON.stringify(DEFAULT_DATA)
+  );
+
 }
 
-function load(){
-  try{
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if(saved) return normalize(JSON.parse(saved));
-  }catch(e){}
-  return cloneDefault();
+
+function loadData() {
+
+  try {
+
+    const saved =
+      JSON.parse(
+        localStorage.getItem(STORAGE_KEY)
+      );
+
+    if (!saved)
+      return cloneDefault();
+
+    return normalize(saved);
+
+  } catch (e) {
+
+    console.error(
+      "Erro ao carregar dados:",
+      e
+    );
+
+    return cloneDefault();
+  }
+
 }
 
-function normalize(d){
-  const base = cloneDefault();
-  d = d || {};
+
+function normalize(raw) {
+
+  const d = raw || {};
 
   return {
-    students:Array.isArray(d.students) ? d.students : base.students,
-    products:Array.isArray(d.products) ? d.products : base.products,
-    rules:Array.isArray(d.rules) ? d.rules : base.rules,
-    attendanceGoal:Number(d.attendanceGoal) || 5
+
+    version: 1,
+
+    settings: {
+
+      attendanceForStar:
+        Number(
+          d.settings?.attendanceForStar
+        ) || 5,
+
+      currency:
+        d.settings?.currency || "BRL"
+
+    },
+
+
+    students:
+
+      Array.isArray(d.students)
+
+        ? d.students.map(s => ({
+
+            id:
+              s.id || uid(),
+
+            name:
+              s.name || "Aluno",
+
+            balance:
+              Number(s.balance) || 0,
+
+            stars:
+              Number(s.stars) || 0,
+
+            attendance:
+              Number(s.attendance) || 0,
+
+            attendanceHistory:
+              Array.isArray(
+                s.attendanceHistory
+              )
+                ? s.attendanceHistory
+                : [],
+
+            history:
+              Array.isArray(s.history)
+                ? s.history
+                : []
+
+          }))
+
+        : [],
+
+
+    products:
+
+      Array.isArray(d.products)
+
+        ? d.products.map(p => ({
+
+            id:
+              p.id || uid(),
+
+            name:
+              p.name || "Item",
+
+            price:
+              Math.max(
+                0,
+                Number(p.price) || 0
+              ),
+
+            stock:
+              Math.max(
+                0,
+                Number(p.stock) || 0
+              ),
+
+            icon:
+              p.icon || "🎁",
+
+            active:
+              p.active !== false
+
+          }))
+
+        : [],
+
+
+    rules:
+
+      Array.isArray(d.rules)
+
+        ? d.rules.map(r => ({
+
+            id:
+              r.id || uid(),
+
+            name:
+              r.name || "Regra",
+
+            amount:
+              Number(r.amount) || 0,
+
+            icon:
+              r.icon || "💰",
+
+            active:
+              r.active !== false
+
+          }))
+
+        : []
+
   };
+
 }
 
-function save(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+function save() {
+
+  try {
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(data)
+    );
+
+  } catch (e) {
+
+    console.error(
+      "Erro ao salvar:",
+      e
+    );
+
+    showToast(
+      "Erro ao salvar os dados."
+    );
+
+    return;
+  }
+
   renderAll();
+
 }
 
-function money(value){
-  return "₿ " + Number(value || 0).toFixed(2);
+
+function showToast(message) {
+
+  const t = $("toast");
+
+  if (!t)
+    return;
+
+  t.textContent = message;
+
+  t.classList.add("show");
+
+  clearTimeout(
+    showToast.timer
+  );
+
+  showToast.timer =
+    setTimeout(
+      () =>
+        t.classList.remove("show"),
+      2200
+    );
+
 }
 
-function escapeHtml(text){
-  return String(text ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
-}
 
-function showToast(message){
-  const el = $("toast");
-  if(!el) return;
+function showView(id) {
 
-  el.textContent = message;
-  el.classList.add("show");
+  document
+    .querySelectorAll(".view")
+    .forEach(v =>
+      v.classList.remove("active")
+    );
 
-  clearTimeout(window.toastTimer);
-  window.toastTimer = setTimeout(() => {
-    el.classList.remove("show");
-  },2500);
-}
-
-function showView(id){
-  document.querySelectorAll(".view").forEach(v => {
-    v.classList.remove("active");
-  });
 
   const view = $(id);
-  if(view) view.classList.add("active");
+
+  if (!view)
+    return;
+
+
+  view.classList.add("active");
+
+
+  document
+    .querySelectorAll(".nav-btn")
+    .forEach(b =>
+      b.classList.remove("active")
+    );
+
+
+  const nav =
+    document.querySelector(
+      `.nav-btn[data-go="${id}"]`
+    );
+
+
+  if (nav)
+    nav.classList.add("active");
+
+
+  window.scrollTo(
+    0,
+    0
+  );
+
 
   renderAll();
+
 }
 
-function addHistory(student, type, description, value){
-  if(!student.history) student.history = [];
+
+function addHistory(
+  student,
+  text,
+  amount,
+  type
+) {
 
   student.history.unshift({
-    id:uid(),
-    date:new Date().toISOString(),
-    type,
-    description,
-    value:Number(value || 0)
-  });
-}
 
-function getStudent(id){
-  return data.students.find(s => s.id === id);
-}
+    id: uid(),
 
-function addMoney(student, value, description){
-  value = Number(value) || 0;
-  student.balance = Number(student.balance || 0) + value;
-  addHistory(student,"reward",description,value);
-}
+    date:
+      new Date().toISOString(),
 
-function removeMoney(student, value, description){
-  value = Number(value) || 0;
-  student.balance = Math.max(0,Number(student.balance || 0) - value);
-  addHistory(student,"purchase",description,-value);
-}
+    text,
 
-function openModal(title, body){
-  const root = $("modalRoot");
-  if(!root) return;
+    amount:
+      Number(amount),
 
-  root.innerHTML = `
-    <div class="modal-backdrop" id="modalBackdrop">
-      <div class="modal">
-        <h2>${title}</h2>
-        ${body}
-      </div>
-    </div>
-  `;
+    type
 
-  root.style.display = "block";
-}
-
-function closeModal(){
-  const root = $("modalRoot");
-  if(root){
-    root.innerHTML = "";
-    root.style.display = "none";
-  }
-}
-
-function addStudent(){
-  openModal("Novo aluno",`
-    <div class="field">
-      <label>Nome</label>
-      <input id="studentName" placeholder="Nome do aluno">
-    </div>
-    <div class="field">
-      <label>Turma</label>
-      <input id="studentClass" placeholder="Turma">
-    </div>
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancelar</button>
-      <button onclick="saveStudent()">Salvar</button>
-    </div>
-  `);
-}
-
-function saveStudent(){
-  const name = $("studentName")?.value.trim();
-  const studentClass = $("studentClass")?.value.trim();
-
-  if(!name){
-    showToast("Digite o nome do aluno.");
-    return;
-  }
-
-  data.students.push({
-    id:uid(),
-    name,
-    className:studentClass,
-    balance:0,
-    stars:0,
-    attendance:0,
-    history:[]
   });
 
-  save();
-  closeModal();
-  showToast("Aluno adicionado.");
+
+  if (
+    student.history.length > 100
+  )
+    student.history.length = 100;
+
 }
 
-function editStudent(id){
-  const s = getStudent(id);
-  if(!s) return;
 
-  openModal("Editar aluno",`
-    <div class="field">
-      <label>Nome</label>
-      <input id="studentName" value="${escapeHtml(s.name)}">
-    </div>
-    <div class="field">
-      <label>Turma</label>
-      <input id="studentClass" value="${escapeHtml(s.className || "")}">
-    </div>
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancelar</button>
-      <button onclick="updateStudent('${id}')">Salvar</button>
-    </div>
-  `);
-}
+function changeBalance(
+  student,
+  amount,
+  reason,
+  type
+) {
 
-function updateStudent(id){
-  const s = getStudent(id);
-  if(!s) return;
+  amount = Number(amount);
 
-  const name = $("studentName")?.value.trim();
-  if(!name){
-    showToast("Digite o nome.");
-    return;
+
+  if (
+    type === "minus" &&
+    student.balance < amount
+  ) {
+
+    showToast(
+      "Saldo insuficiente."
+    );
+
+    return false;
   }
 
-  s.name = name;
-  s.className = $("studentClass")?.value.trim() || "";
+
+  student.balance =
+    Math.max(
+      0,
+
+      Number(
+        (
+          student.balance +
+          (
+            type === "minus"
+              ? -amount
+              : amount
+          )
+        ).toFixed(2)
+      )
+    );
+
+
+  addHistory(
+    student,
+    reason,
+    amount,
+    type
+  );
+
 
   save();
-  closeModal();
-  showToast("Aluno atualizado.");
+
+
+  showToast(
+    type === "minus"
+      ? `Compra de ${money(amount)} registrada.`
+      : `${money(amount)} adicionados.`
+  );
+
+
+  return true;
+
 }
 
-function deleteStudent(id){
-  const s = getStudent(id);
-  if(!s) return;
 
-  if(!confirm(`Excluir ${s.name}?`)) return;
+function renderDashboard() {
 
-  data.students = data.students.filter(x => x.id !== id);
+  $("statStudents").textContent =
+    data.students.length;
 
-  if(currentStudentId === id){
-    currentStudentId = null;
-  }
 
-  save();
-  showToast("Aluno excluído.");
-}
+  $("statMoney").textContent =
+    money(
+      data.students.reduce(
+        (a, s) =>
+          a + s.balance,
+        0
+      )
+    );
 
-function openStudent(id){
-  currentStudentId = id;
-  showView("studentView");
-}
 
-function addProduct(){
-  openModal("Novo produto",`
-    <div class="field">
-      <label>Nome</label>
-      <input id="productName" placeholder="Nome do produto">
-    </div>
-    <div class="field">
-      <label>Preço</label>
-      <input id="productPrice" type="number" min="0" step="0.01">
-    </div>
-    <div class="field">
-      <label>Estoque</label>
-      <input id="productStock" type="number" min="0" step="1">
-    </div>
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancelar</button>
-      <button onclick="saveProduct()">Salvar</button>
-    </div>
-  `);
-}
-
-function saveProduct(){
-  const name = $("productName")?.value.trim();
-  const price = Number($("productPrice")?.value || 0);
-  const stock = Number($("productStock")?.value || 0);
-
-  if(!name){
-    showToast("Digite o nome.");
-    return;
-  }
-
-  data.products.push({
-    id:uid(),
-    name,
-    price,
-    stock
-  });
-
-  save();
-  closeModal();
-  showToast("Produto adicionado.");
-}
-
-function editProduct(id){
-  const p = data.products.find(x => x.id === id);
-  if(!p) return;
-
-  openModal("Editar produto",`
-    <div class="field">
-      <label>Nome</label>
-      <input id="productName" value="${escapeHtml(p.name)}">
-    </div>
-    <div class="field">
-      <label>Preço</label>
-      <input id="productPrice" type="number" min="0" step="0.01" value="${p.price}">
-    </div>
-    <div class="field">
-      <label>Estoque</label>
-      <input id="productStock" type="number" min="0" value="${p.stock}">
-    </div>
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancelar</button>
-      <button onclick="updateProduct('${id}')">Salvar</button>
-    </div>
-  `);
-}
-
-function updateProduct(id){
-  const p = data.products.find(x => x.id === id);
-  if(!p) return;
-
-  p.name = $("productName")?.value.trim() || p.name;
-  p.price = Number($("productPrice")?.value || 0);
-  p.stock = Number($("productStock")?.value || 0);
-
-  save();
-  closeModal();
-  showToast("Produto atualizado.");
-}
-
-function deleteProduct(id){
-  if(!confirm("Excluir este produto?")) return;
-
-  data.products = data.products.filter(x => x.id !== id);
-  save();
-  showToast("Produto excluído.");
-                             }
-function buyProduct(id){
-  const p = data.products.find(x => x.id === id);
-  if(!p) return;
-
-  if(p.stock <= 0){
-    showToast("Produto sem estoque.");
-    return;
-  }
-
-  if(!currentStudentId){
-    showToast("Selecione um aluno.");
-    return;
-  }
-
-  const s = getStudent(currentStudentId);
-  if(!s) return;
-
-  if(Number(s.balance || 0) < Number(p.price || 0)){
-    showToast("Saldo insuficiente.");
-    return;
-  }
-
-  removeMoney(s,p.price,`Compra: ${p.name}`);
-  p.stock--;
-
-  save();
-  showToast(`${p.name} comprado.`);
-}
-
-function markAttendance(id){
-  const s = getStudent(id);
-  if(!s) return;
-
-  s.attendance = Number(s.attendance || 0) + 1;
-
-  const goal = Number(data.attendanceGoal || 5);
-
-  if(s.attendance >= goal){
-    s.attendance = 0;
-    s.stars = Number(s.stars || 0) + 1;
-
-    addHistory(
-      s,
-      "star",
-      "Meta de presença alcançada",
+  $("statStars").textContent =
+    data.students.reduce(
+      (a, s) =>
+        a + s.stars,
       0
     );
 
-    showToast(`${s.name} ganhou 1 estrela!`);
-  }else{
-    showToast("Presença registrada.");
-  }
 
-  save();
+  $("statProducts").textContent =
+    data.products.length;
+
 }
 
-function rewardStudent(studentId,ruleId){
-  const s = getStudent(studentId);
-  const r = data.rules.find(x => x.id === ruleId);
 
-  if(!s || !r) return;
+function renderStudents() {
 
-  addMoney(
-    s,
-    r.value,
-    r.name
-  );
+  const q =
+    ($("studentSearch").value || "")
+      .toLowerCase();
 
-  save();
 
-  showToast(
-    `${s.name} recebeu ${money(r.value)}.`
-  );
-}
+  const list =
+    $("studentsList");
 
-function addRule(){
-  openModal("Nova recompensa",`
-    <div class="field">
-      <label>Nome</label>
-      <input id="ruleName" placeholder="Nome da atividade">
-    </div>
 
-    <div class="field">
-      <label>Descrição</label>
-      <input id="ruleDescription" placeholder="Descrição">
-    </div>
+  const students =
+    data.students.filter(
+      s =>
+        s.name
+          .toLowerCase()
+          .includes(q)
+    );
 
-    <div class="field">
-      <label>Valor</label>
-      <input id="ruleValue" type="number" min="0" step="0.01">
-    </div>
 
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancelar</button>
-      <button onclick="saveRule()">Salvar</button>
-    </div>
-  `);
-}
+  if (!students.length) {
 
-function saveRule(){
-  const name = $("ruleName")?.value.trim();
-  const description = $("ruleDescription")?.value.trim();
-  const value = Number($("ruleValue")?.value || 0);
+    list.innerHTML =
+      '<div class="empty">Nenhum aluno encontrado.</div>';
 
-  if(!name){
-    showToast("Digite o nome.");
     return;
   }
 
-  data.rules.push({
-    id:uid(),
-    name,
-    description,
-    value
-  });
 
-  save();
-  closeModal();
-  showToast("Recompensa adicionada.");
-}
+  list.innerHTML =
+    students
+      .map(
+        s => `
 
-function editRule(id){
-  const r = data.rules.find(x => x.id === id);
-  if(!r) return;
+      <article class="list-card">
 
-  openModal("Editar recompensa",`
-    <div class="field">
-      <label>Nome</label>
-      <input id="ruleName" value="${escapeHtml(r.name)}">
-    </div>
+        <div class="list-main">
 
-    <div class="field">
-      <label>Descrição</label>
-      <input id="ruleDescription" value="${escapeHtml(r.description || "")}">
-    </div>
-
-    <div class="field">
-      <label>Valor</label>
-      <input id="ruleValue" type="number" min="0" step="0.01" value="${r.value}">
-    </div>
-
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancelar</button>
-      <button onclick="updateRule('${id}')">Salvar</button>
-    </div>
-  `);
-}
-
-function updateRule(id){
-  const r = data.rules.find(x => x.id === id);
-  if(!r) return;
-
-  r.name = $("ruleName")?.value.trim() || r.name;
-  r.description = $("ruleDescription")?.value.trim() || "";
-  r.value = Number($("ruleValue")?.value || 0);
-
-  save();
-  closeModal();
-  showToast("Recompensa atualizada.");
-}
-
-function deleteRule(id){
-  if(!confirm("Excluir esta recompensa?")) return;
-
-  data.rules = data.rules.filter(x => x.id !== id);
-
-  save();
-  showToast("Recompensa excluída.");
-}
-
-function editAttendanceGoal(){
-  openModal("Meta de presença",`
-    <div class="field">
-      <label>Presenças necessárias para ganhar 1 estrela</label>
-      <input
-        id="attendanceGoal"
-        type="number"
-        min="1"
-        value="${data.attendanceGoal}"
-      >
-    </div>
-
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancelar</button>
-      <button onclick="saveAttendanceGoal()">Salvar</button>
-    </div>
-  `);
-}
-
-function saveAttendanceGoal(){
-  const value = Number($("attendanceGoal")?.value || 1);
-
-  data.attendanceGoal = Math.max(1,value);
-
-  save();
-  closeModal();
-
-  showToast("Meta atualizada.");
-}
-
-function addManualMoney(studentId){
-  const s = getStudent(studentId);
-  if(!s) return;
-
-  openModal("Adicionar dinheiro",`
-    <div class="field">
-      <label>Valor</label>
-      <input id="manualMoney" type="number" min="0" step="0.01">
-    </div>
-
-    <div class="field">
-      <label>Motivo</label>
-      <input id="manualReason" placeholder="Motivo da recompensa">
-    </div>
-
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancelar</button>
-      <button onclick="saveManualMoney('${studentId}')">Adicionar</button>
-    </div>
-  `);
-}
-
-function saveManualMoney(studentId){
-  const s = getStudent(studentId);
-  if(!s) return;
-
-  const value = Number($("manualMoney")?.value || 0);
-  const reason = $("manualReason")?.value.trim() || "Recompensa extra";
-
-  if(value <= 0){
-    showToast("Digite um valor válido.");
-    return;
-  }
-
-  addMoney(s,value,reason);
-
-  save();
-  closeModal();
-
-  showToast("Dinheiro adicionado.");
-}
-
-function addStar(studentId){
-  const s = getStudent(studentId);
-  if(!s) return;
-
-  s.stars = Number(s.stars || 0) + 1;
-
-  addHistory(
-    s,
-    "star",
-    "Estrela adicionada manualmente",
-    0
-  );
-
-  save();
-
-  showToast("Estrela adicionada.");
-}
-
-function removeStar(studentId){
-  const s = getStudent(studentId);
-  if(!s) return;
-
-  if(Number(s.stars || 0) <= 0){
-    showToast("O aluno não possui estrelas.");
-    return;
-  }
-
-  s.stars--;
-
-  addHistory(
-    s,
-    "star-remove",
-    "Estrela removida",
-    0
-  );
-
-  save();
-
-  showToast("Estrela removida.");
-    }
-function renderDashboard(){
-  const el = $("dashboardView");
-  if(!el) return;
-
-  const totalStudents = data.students.length;
-  const totalMoney = data.students.reduce(
-    (sum,s) => sum + Number(s.balance || 0),0
-  );
-  const totalProducts = data.products.length;
-
-  el.innerHTML = `
-    <div class="page-header">
-      <div>
-        <h1>Instituto Banka</h1>
-        <p>Controle da turma</p>
-      </div>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <strong>${totalStudents}</strong>
-        <span>Alunos</span>
-      </div>
-
-      <div class="stat-card">
-        <strong>${money(totalMoney)}</strong>
-        <span>Dinheiro em circulação</span>
-      </div>
-
-      <div class="stat-card">
-        <strong>${totalProducts}</strong>
-        <span>Produtos</span>
-      </div>
-
-      <div class="stat-card">
-        <strong>${data.rules.length}</strong>
-        <span>Recompensas</span>
-      </div>
-    </div>
-
-    <div class="section-header">
-      <h2>Alunos</h2>
-      <button onclick="addStudent()">+ Aluno</button>
-    </div>
-
-    <div class="student-list">
-      ${
-        data.students.length
-        ?
-        data.students.map(s => `
-          <div class="student-card">
-            <div onclick="openStudent('${s.id}')" class="student-main">
-              <div class="student-avatar">
-                ${escapeHtml((s.name || "?").charAt(0).toUpperCase())}
-              </div>
-
-              <div>
-                <strong>${escapeHtml(s.name)}</strong>
-                <small>
-                  ${escapeHtml(s.className || "Sem turma")}
-                </small>
-              </div>
-            </div>
-
-            <div class="student-money">
-              ${money(s.balance)}
-            </div>
+          <div class="avatar">
+            ${escapeHtml(
+              initials(s.name)
+            )}
           </div>
-        `).join("")
-        :
-        `<div class="empty-state">
-          Nenhum aluno cadastrado.
-        </div>`
-      }
-    </div>
-  `;
-}
 
-function renderStudentDetail(){
-  const el = $("studentView");
-  if(!el) return;
+          <div class="grow">
 
-  const s = getStudent(currentStudentId);
+            <b>
+              ${escapeHtml(s.name)}
+            </b>
 
-  if(!s){
-    el.innerHTML = `
-      <div class="empty-state">
-        Aluno não encontrado.
-      </div>
-    `;
-    return;
-  }
+            <span class="muted">
+              ${s.attendance}/${data.settings.attendanceForStar}
+              presenças para a próxima ⭐
+            </span>
 
-  const goal = Number(data.attendanceGoal || 5);
-  const attendance = Number(s.attendance || 0);
-  const progress = Math.min(100,(attendance / goal) * 100);
+          </div>
 
-  el.innerHTML = `
-    <div class="page-header">
-      <button onclick="showView('dashboardView')">
-        ← Voltar
-      </button>
+          <div class="money">
+            ${money(s.balance)}
+          </div>
 
-      <div class="student-header">
-        <h1>${escapeHtml(s.name)}</h1>
-        <p>${escapeHtml(s.className || "Sem turma")}</p>
-      </div>
+        </div>
 
-      <div class="header-actions">
-        <button onclick="editStudent('${s.id}')">Editar</button>
-        <button onclick="deleteStudent('${s.id}')">Excluir</button>
-      </div>
-    </div>
-
-    <div class="balance-card">
-      <span>Saldo atual</span>
-      <strong>${money(s.balance)}</strong>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <strong>${s.stars || 0}</strong>
-        <span>⭐ Estrelas</span>
-      </div>
-
-      <div class="stat-card">
-        <strong>${attendance}/${goal}</strong>
-        <span>Presenças</span>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">
-        <h2>Presença</h2>
-        <button onclick="markAttendance('${s.id}')">
-          + Presença
-        </button>
-      </div>
-
-      <div class="progress">
         <div
-          class="progress-bar"
-          style="width:${progress}%"
-        ></div>
-      </div>
+          class="balance-line"
+          style="margin-top:10px"
+        >
 
-      <p>${attendance} de ${goal} presenças</p>
-    </div>
+          <span class="stars">
+            ⭐ ${s.stars}
+          </span>
 
-    <div class="section-card">
-      <div class="section-header">
-        <h2>Estrelas</h2>
+          <span class="muted">
+            Presenças: ${s.attendance}
+          </span>
 
-        <div>
-          <button onclick="addStar('${s.id}')">+1</button>
-          <button onclick="removeStar('${s.id}')">-1</button>
-        </div>
-      </div>
-
-      <div class="stars-display">
-        ${"⭐".repeat(Number(s.stars || 0)) || "Nenhuma estrela"}
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">
-        <h2>Recompensas</h2>
-        <button onclick="addManualMoney('${s.id}')">
-          + Dinheiro
-        </button>
-      </div>
-
-      <div class="rule-list">
-        ${
-          data.rules.map(r => `
-            <div class="rule-card">
-              <div>
-                <strong>${escapeHtml(r.name)}</strong>
-                <small>
-                  ${escapeHtml(r.description || "")}
-                </small>
-              </div>
-
-              <button
-                onclick="rewardStudent('${s.id}','${r.id}')"
-              >
-                +${money(r.value)}
-              </button>
-            </div>
-          `).join("")
-        }
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">
-        <h2>Histórico</h2>
-      </div>
-
-      <div class="history-list">
-        ${
-          s.history && s.history.length
-          ?
-          s.history.map(h => `
-            <div class="history-item">
-              <div>
-                <strong>
-                  ${escapeHtml(h.description || "")}
-                </strong>
-
-                <small>
-                  ${new Date(h.date).toLocaleString("pt-BR")}
-                </small>
-              </div>
-
-              <span class="${h.value >= 0 ? "positive" : "negative"}">
-                ${h.value > 0 ? "+" : ""}
-                ${money(h.value)}
-              </span>
-            </div>
-          `).join("")
-          :
-          `<div class="empty-state">
-            Nenhuma movimentação.
-          </div>`
-        }
-      </div>
-    </div>
-  `;
-}
-
-function renderStore(){
-  const el = $("storeView");
-  if(!el) return;
-
-  el.innerHTML = `
-    <div class="page-header">
-      <div>
-        <h1>Loja</h1>
-        <p>Produtos disponíveis</p>
-      </div>
-
-      <button onclick="addProduct()">+ Produto</button>
-    </div>
-
-    <div class="product-grid">
-      ${
-        data.products.length
-        ?
-        data.products.map(p => `
-          <div class="product-card">
-            <div class="product-info">
-              <h3>${escapeHtml(p.name)}</h3>
-
-              <strong>
-                ${money(p.price)}
-              </strong>
-
-              <small>
-                Estoque: ${p.stock}
-              </small>
-            </div>
-
-            <div class="product-actions">
-              <button
-                onclick="buyProduct('${p.id}')"
-                ${p.stock <= 0 ? "disabled" : ""}
-              >
-                Comprar
-              </button>
-
-              <button onclick="editProduct('${p.id}')">
-                Editar
-              </button>
-
-              <button onclick="deleteProduct('${p.id}')">
-                Excluir
-              </button>
-            </div>
-          </div>
-        `).join("")
-        :
-        `<div class="empty-state">
-          Nenhum produto cadastrado.
-        </div>`
-      }
-    </div>
-  `;
-}
-
-function renderRules(){
-  const el = $("rulesView");
-  if(!el) return;
-
-  el.innerHTML = `
-    <div class="page-header">
-      <div>
-        <h1>Recompensas</h1>
-        <p>Atividades que dão dinheiro</p>
-      </div>
-
-      <button onclick="addRule()">+ Recompensa</button>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">
-        <div>
-          <h2>Meta de presença</h2>
-          <p>
-            ${data.attendanceGoal} presenças = 1 estrela
-          </p>
         </div>
 
-        <button onclick="editAttendanceGoal()">
-          Editar
-        </button>
-      </div>
-    </div>
+        <div class="card-actions">
 
-    <div class="rule-list">
-      ${
-        data.rules.map(r => `
-          <div class="rule-card">
-            <div>
-              <strong>${escapeHtml(r.name)}</strong>
+          <button
+            class="small-btn"
+            onclick="openStudent('${s.id}')"
+          >
+            Abrir perfil
+          </button>
 
-              <small>
-                ${escapeHtml(r.description || "")}
-              </small>
+          <button
+            class="small-btn"
+            onclick="editStudent('${s.id}')"
+          >
+            ✏️ Editar
+          </button>
 
-              <b>${money(r.value)}</b>
-            </div>
+          <button
+            class="small-btn danger"
+            onclick="deleteStudent('${s.id}')"
+          >
+            Excluir
+          </button>
 
-            <div>
-              <button onclick="editRule('${r.id}')">
-                Editar
-              </button>
-
-              <button onclick="deleteRule('${r.id}')">
-                Excluir
-              </button>
-            </div>
-          </div>
-        `).join("")
-      }
-    </div>
-  `;
-}
-
-function renderSettings(){
-  const el = $("settingsView");
-  if(!el) return;
-
-  el.innerHTML = `
-    <div class="page-header">
-      <div>
-        <h1>Configurações</h1>
-        <p>Dados do Instituto Banka</p>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">
-        <div>
-          <h2>Backup</h2>
-          <p>
-            Exporte ou importe os dados usando copiar e colar.
-          </p>
         </div>
-      </div>
 
-      <div class="settings-buttons">
-        <button onclick="exportBackup()">
-          Exportar backup
-        </button>
+      </article>
 
-        <button onclick="openImportTextModal()">
-          Importar backup
-        </button>
-      </div>
-    </div>
-
-    <div class="section-card danger-zone">
-      <h2>Apagar dados</h2>
-
-      <p>
-        Apaga todos os alunos, produtos, recompensas,
-        estrelas e históricos deste dispositivo.
-      </p>
-
-      <button onclick="resetData()">
-        Apagar todos os dados
-      </button>
-    </div>
-  `;
-}
-
-function renderAll(){
-  renderDashboard();
-  renderStudentDetail();
-  renderStore();
-  renderRules();
-  renderSettings();
-}
-
-function createBackupText(){
-  const payload = {
-    ...data,
-    exportedAt:new Date().toISOString(),
-    app:"Instituto Banka",
-    backupVersion:1
-  };
-
-  return "IBK1|" + JSON.stringify(payload);
-}
-function openExportModal(){
-  const backup = createBackupText();
-
-  openModal("Exportar backup",`
-    <p>
-      Copie todo o código abaixo e guarde em um local seguro.
-    </p>
-
-    <textarea
-      id="backupText"
-      readonly
-      style="
-        width:100%;
-        min-height:260px;
-        box-sizing:border-box;
-        font-size:12px;
-        resize:vertical;
-      "
-    >${escapeHtml(backup)}</textarea>
-
-    <div class="modal-actions">
-      <button onclick="closeModal()">
-        Fechar
-      </button>
-
-      <button onclick="copyBackup()">
-        Copiar backup
-      </button>
-    </div>
-  `);
-
-  setTimeout(() => {
-    const textarea = $("backupText");
-    if(textarea){
-      textarea.focus();
-      textarea.select();
-    }
-  },100);
-}
-
-async function copyBackup(){
-  const textarea = $("backupText");
-
-  if(!textarea){
-    showToast("Backup não encontrado.");
-    return;
-  }
-
-  const text = textarea.value;
-
-  try{
-    if(
-      navigator.clipboard &&
-      typeof navigator.clipboard.writeText === "function"
-    ){
-      await navigator.clipboard.writeText(text);
-    }else{
-      textarea.focus();
-      textarea.select();
-      document.execCommand("copy");
-    }
-
-    showToast("Backup copiado!");
-  }catch(e){
-    textarea.focus();
-    textarea.select();
-
-    try{
-      document.execCommand("copy");
-      showToast("Backup copiado!");
-    }catch(error){
-      showToast("Selecione o texto e copie manualmente.");
-    }
-  }
-}
-
-function openImportTextModal(){
-  openModal("Importar backup",`
-    <p>
-      Cole aqui o backup que você exportou anteriormente.
-    </p>
-
-    <textarea
-      id="backupImportText"
-      placeholder="Cole o backup aqui..."
-      style="
-        width:100%;
-        min-height:260px;
-        box-sizing:border-box;
-        font-size:12px;
-        resize:vertical;
-      "
-    ></textarea>
-
-    <div class="modal-actions">
-      <button onclick="closeModal()">
-        Cancelar
-      </button>
-
-      <button onclick="importBackupText()">
-        Importar
-      </button>
-    </div>
-  `);
-
-  setTimeout(() => {
-    const textarea = $("backupImportText");
-    if(textarea) textarea.focus();
-  },100);
-}
-
-function decodeBase64Utf8(encoded){
-  try{
-    const binary = atob(encoded);
-    let percent = "";
-
-    for(let i = 0; i < binary.length; i++){
-      percent += "%" +
-        binary.charCodeAt(i)
-        .toString(16)
-        .padStart(2,"0");
-    }
-
-    return decodeURIComponent(percent);
-  }catch(e){
-    try{
-      return atob(encoded);
-    }catch(error){
-      return "";
-    }
-  }
-}
-
-function importBackupText(text){
-  text = String(text || "").trim();
-
-  if(!text){
-    showToast("Cole um backup primeiro.");
-    return;
-  }
-
-  let jsonText = text;
-
-  try{
-
-    /*
-      Formato novo:
-      IBK1|{JSON}
-    */
-    if(jsonText.startsWith("IBK1|")){
-      jsonText = jsonText.slice(5);
-    }
-
-    /*
-      Formato antigo:
-      INSTITUTO_BANKA_BACKUP|base64
-    */
-    else if(
-      jsonText.startsWith("INSTITUTO_BANKA_BACKUP|")
-    ){
-      const encoded =
-        jsonText.slice("INSTITUTO_BANKA_BACKUP|".length);
-
-      jsonText = decodeBase64Utf8(encoded);
-    }
-
-    const parsed = JSON.parse(jsonText);
-
-    if(
-      !parsed ||
-      !Array.isArray(parsed.students) ||
-      !Array.isArray(parsed.products) ||
-      !Array.isArray(parsed.rules)
-    ){
-      throw new Error("Backup inválido.");
-    }
-
-    if(
-      !confirm(
-        "Importar este backup substituirá todos os dados atuais. Continuar?"
+    `
       )
-    ){
-      return;
-    }
+      .join("");
 
-    data = normalize(parsed);
+}
+
+
+function renderStore() {
+
+  const list =
+    $("storeList");
+
+
+  if (!data.products.length) {
+
+    list.innerHTML =
+      '<div class="empty">A loja ainda não possui itens.</div>';
+
+    return;
+  }
+
+
+  list.innerHTML =
+    data.products
+      .map(
+        p => `
+
+      <article class="list-card">
+
+        <div class="list-main">
+
+          <div class="avatar">
+            ${escapeHtml(p.icon)}
+          </div>
+
+          <div class="grow">
+
+            <b>
+              ${escapeHtml(p.name)}
+            </b>
+
+            <span class="muted">
+              Estoque: ${p.stock} ·
+              ${p.active
+                ? "Ativo"
+                : "Desativado"}
+            </span>
+
+          </div>
+
+          <div class="money">
+            ${money(p.price)}
+          </div>
+
+        </div>
+
+        <div class="card-actions">
+
+          <button
+            class="small-btn"
+            onclick="editProduct('${p.id}')"
+          >
+            ✏️ Editar
+          </button>
+
+          <button
+            class="small-btn danger"
+            onclick="deleteProduct('${p.id}')"
+          >
+            Excluir
+          </button>
+
+        </div>
+
+      </article>
+
+    `
+      )
+      .join("");
+
+}
+
+
+function renderRules() {
+
+  const list =
+    $("rulesList");
+
+
+  if (!data.rules.length) {
+
+    list.innerHTML =
+      '<div class="empty">Nenhuma regra cadastrada.</div>';
+
+    return;
+  }
+
+
+  list.innerHTML =
+    data.rules
+      .map(
+        r => `
+
+      <article class="list-card">
+
+        <div class="list-main">
+
+          <div class="avatar">
+            ${escapeHtml(r.icon)}
+          </div>
+
+          <div class="grow">
+
+            <b>
+              ${escapeHtml(r.name)}
+            </b>
+
+            <span class="muted">
+              ${r.active
+                ? "Ativa"
+                : "Desativada"}
+            </span>
+
+          </div>
+
+          <div class="money">
+            +${money(r.amount)}
+          </div>
+
+        </div>
+
+        <div class="card-actions">
+
+          <button
+            class="small-btn"
+            onclick="editRule('${r.id}')"
+          >
+            ✏️ Editar
+          </button>
+
+          <button
+            class="small-btn danger"
+            onclick="deleteRule('${r.id}')"
+          >
+            Excluir
+          </button>
+
+        </div>
+
+      </article>
+
+    `
+      )
+      .join("");
+
+}
+
+
+function renderAttendance() {
+
+  const list =
+    $("attendanceList");
+
+
+  if (!data.students.length) {
+
+    list.innerHTML =
+      '<div class="empty">Cadastre alunos para registrar presença.</div>';
+
+    return;
+  }
+
+
+  list.innerHTML =
+    data.students
+      .map(
+        s => {
+
+          const dots =
+            Array.from(
+              {
+                length:
+                  data.settings
+                    .attendanceForStar
+              },
+
+              (_, i) =>
+                `<span class="dot ${
+                  i < s.attendance
+                    ? "done"
+                    : ""
+                }"></span>`
+            )
+            .join("");
+
+
+          return `
+
+        <article class="list-card">
+
+          <div class="list-main">
+
+            <div class="avatar">
+              ${escapeHtml(
+                initials(s.name)
+              )}
+            </div>
+
+            <div class="grow">
+
+              <b>
+                ${escapeHtml(s.name)}
+              </b>
+
+              <span class="muted">
+                ⭐ ${s.stars} estrelas
+              </span>
+
+            </div>
+
+            <button
+              class="primary-btn"
+              onclick="markAttendance('${s.id}')"
+            >
+              ✓ Presente
+            </button>
+
+          </div>
+
+          <div class="dots">
+            ${dots}
+          </div>
+
+        </article>
+
+      `;
+
+        }
+      )
+      .join("");
+
+}
+
+
+function renderStudentDetail() {
+
+  if (!currentStudentId)
+    return;
+
+
+  const s =
+    data.students.find(
+      x =>
+        x.id ===
+        currentStudentId
+    );
+
+
+  if (!s) {
+
     currentStudentId = null;
 
-    save();
-    closeModal();
-    showView("dashboardView");
-
-    showToast("Backup importado com sucesso!");
-
-  }catch(error){
-    console.error(error);
-
-    alert(
-      "Não foi possível importar este backup.\n\n" +
-      "Verifique se você copiou o código completo."
+    showView(
+      "studentsView"
     );
+
+    return;
   }
+
+
+  $("detailName").textContent =
+    s.name;
+
+
+  $("detailBalance").textContent =
+    money(s.balance);
+
+
+  $("detailStars").textContent =
+    `⭐ ${s.stars} estrelas · ${s.attendance}/${data.settings.attendanceForStar} presenças`;
+
+
+  $("detailRules").innerHTML =
+    data.rules
+      .filter(
+        r => r.active
+      )
+      .map(
+        r => `
+
+        <button
+          class="action-btn"
+          onclick="rewardStudent('${r.id}')"
+        >
+
+          <b>
+            ${escapeHtml(r.icon)}
+            ${escapeHtml(r.name)}
+          </b>
+
+          <small>
+            +${money(r.amount)}
+          </small>
+
+        </button>
+
+      `
+      )
+      .join("")
+      ||
+      '<div class="empty">Nenhuma regra ativa.</div>';
+
+
+  $("detailProducts").innerHTML =
+    data.products
+      .filter(
+        p => p.active
+      )
+      .map(
+        p => {
+
+          const disabled =
+            p.stock <= 0 ||
+            s.balance < p.price;
+
+
+          return `
+
+          <button
+            class="action-btn ${
+              disabled
+                ? "disabled"
+                : ""
+            }"
+            ${
+              disabled
+                ? "disabled"
+                : ""
+            }
+            onclick="buyProduct('${p.id}')"
+          >
+
+            <b>
+              ${escapeHtml(p.icon)}
+              ${escapeHtml(p.name)}
+            </b>
+
+            <small>
+              −${money(p.price)} ·
+              ${p.stock} em estoque
+            </small>
+
+          </button>
+
+        `;
+
+        }
+      )
+      .join("")
+      ||
+      '<div class="empty">Nenhum item ativo.</div>';
+
+
+  $("detailHistory").innerHTML =
+    s.history.length
+
+      ? s.history
+          .map(
+            h => `
+
+          <div class="history-item">
+
+            <div>
+
+              <b>
+                ${escapeHtml(h.text)}
+              </b>
+
+              <div class="muted">
+                ${new Date(
+                  h.date
+                ).toLocaleString("pt-BR")}
+              </div>
+
+            </div>
+
+            <strong
+              class="${
+                h.type === "plus"
+                  ? "plus"
+                  : "minus"
+              }"
+            >
+              ${
+                h.type === "plus"
+                  ? "+"
+                  : "−"
+              }
+              ${money(h.amount)}
+            </strong>
+
+          </div>
+
+        `
+          )
+          .join("")
+
+      : '<div class="empty">Nenhuma movimentação.</div>';
+
 }
 
-function resetData(){
-  if(!confirm(
-    "Tem certeza que deseja apagar TODOS os dados?"
-  )){
+
+function renderAll() {
+
+  renderDashboard();
+
+  renderStudents();
+
+  renderStore();
+
+  renderRules();
+
+  renderAttendance();
+
+  renderStudentDetail();
+
+}
+
+
+function openModal(
+  title,
+  body,
+  onSubmit
+) {
+
+  $("modalRoot").innerHTML = `
+
+    <div
+      class="modal-backdrop"
+      id="modalBackdrop"
+    >
+
+      <div class="modal">
+
+        <h3>
+          ${title}
+        </h3>
+
+        <form id="modalForm">
+
+          ${body}
+
+          <div class="modal-actions">
+
+            <button
+              type="button"
+              class="secondary-btn"
+              onclick="closeModal()"
+            >
+              Cancelar
+            </button>
+
+            <button
+              class="primary-btn"
+            >
+              Salvar
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  $("modalForm").onsubmit =
+    e => {
+
+      e.preventDefault();
+
+      onSubmit(
+        new FormData(e.target)
+      );
+
+    };
+
+
+  $("modalBackdrop")
+    .addEventListener(
+      "click",
+      e => {
+
+        if (
+          e.target.id ===
+          "modalBackdrop"
+        )
+          closeModal();
+
+      }
+    );
+
+}
+
+
+function closeModal() {
+
+  $("modalRoot").innerHTML = "";
+
+}
+
+
+function addStudent() {
+
+  openModal(
+
+    "Novo aluno",
+
+    `<div class="form-grid">
+
+      <div class="field">
+
+        <label>Nome</label>
+
+        <input
+          name="name"
+          required
+          autofocus
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Saldo inicial</label>
+
+        <input
+          name="balance"
+          type="number"
+          min="0"
+          step="0.01"
+          value="0"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Estrelas iniciais</label>
+
+        <input
+          name="stars"
+          type="number"
+          min="0"
+          step="1"
+          value="0"
+        >
+
+      </div>
+
+    </div>`,
+
+    f => {
+
+      data.students.push({
+
+        id:
+          uid(),
+
+        name:
+          f.get("name").trim(),
+
+        balance:
+          Number(
+            f.get("balance")
+          ) || 0,
+
+        stars:
+          Number(
+            f.get("stars")
+          ) || 0,
+
+        attendance: 0,
+
+        attendanceHistory: [],
+
+        history: []
+
+      });
+
+
+      save();
+
+      closeModal();
+
+
+      showToast(
+        "Aluno adicionado."
+      );
+
+    }
+
+  );
+
+}
+
+
+function editStudent(id) {
+
+  const s =
+    data.students.find(
+      x => x.id === id
+    );
+
+
+  if (!s)
+    return;
+
+
+  openModal(
+
+    "Editar aluno",
+
+    `<div class="form-grid">
+
+      <div class="field">
+
+        <label>Nome</label>
+
+        <input
+          name="name"
+          required
+          value="${escapeHtml(
+            s.name
+          )}"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Saldo</label>
+
+        <input
+          name="balance"
+          type="number"
+          min="0"
+          step="0.01"
+          value="${s.balance}"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Estrelas</label>
+
+        <input
+          name="stars"
+          type="number"
+          min="0"
+          value="${s.stars}"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Presenças atuais</label>
+
+        <input
+          name="attendance"
+          type="number"
+          min="0"
+          value="${s.attendance}"
+        >
+
+      </div>
+
+    </div>`,
+
+    f => {
+
+      s.name =
+        f.get("name").trim();
+
+
+      s.balance =
+        Math.max(
+          0,
+          Number(
+            f.get("balance")
+          ) || 0
+        );
+
+
+      s.stars =
+        Math.max(
+          0,
+          parseInt(
+            f.get("stars")
+          ) || 0
+        );
+
+
+      s.attendance =
+        Math.max(
+          0,
+          parseInt(
+            f.get("attendance")
+          ) || 0
+        );
+
+
+      save();
+
+      closeModal();
+
+
+      showToast(
+        "Perfil atualizado."
+      );
+
+    }
+
+  );
+
+}
+
+
+function deleteStudent(id) {
+
+  const s =
+    data.students.find(
+      x => x.id === id
+    );
+
+
+  if (!s)
+    return;
+
+
+  if (
+    confirm(
+      `Excluir ${s.name}? Esta ação não pode ser desfeita.`
+    )
+  ) {
+
+    data.students =
+      data.students.filter(
+        x => x.id !== id
+      );
+
+
+    if (
+      currentStudentId === id
+    )
+      currentStudentId = null;
+
+
+    save();
+
+
+    showToast(
+      "Aluno excluído."
+    );
+
+  }
+
+}
+
+
+function openStudent(id) {
+
+  currentStudentId = id;
+
+  showView(
+    "studentDetailView"
+  );
+
+}
+
+
+function rewardStudent(ruleId) {
+
+  const r =
+    data.rules.find(
+      x => x.id === ruleId
+    );
+
+
+  const s =
+    data.students.find(
+      x =>
+        x.id ===
+        currentStudentId
+    );
+
+
+  if (r && s) {
+
+    changeBalance(
+      s,
+      r.amount,
+      r.name,
+      "plus"
+    );
+
+  }
+
+}
+
+
+function buyProduct(productId) {
+
+  const p =
+    data.products.find(
+      x => x.id === productId
+    );
+
+
+  const s =
+    data.students.find(
+      x =>
+        x.id ===
+        currentStudentId
+    );
+
+
+  if (!p || !s)
+    return;
+
+
+  if (p.stock <= 0) {
+
+    showToast(
+      "Item sem estoque."
+    );
+
     return;
   }
 
-  if(!confirm(
-    "Esta ação apagará alunos, dinheiro, estrelas, " +
-    "histórico, produtos e recompensas. Continuar?"
-  )){
+
+  if (
+    s.balance < p.price
+  ) {
+
+    showToast(
+      "Saldo insuficiente."
+    );
+
     return;
   }
 
-  localStorage.removeItem(STORAGE_KEY);
 
-  data = cloneDefault();
-  currentStudentId = null;
+  if (
+    changeBalance(
+      s,
+      p.price,
+      p.name,
+      "minus"
+    )
+  ) {
+
+    p.stock--;
+
+    save();
+
+  }
+
+                }
+
+function markAttendance(id) {
+
+  const s =
+    data.students.find(
+      x => x.id === id
+    );
+
+
+  if (!s)
+    return;
+
+
+  s.attendance++;
+
+
+  s.attendanceHistory.unshift(
+    new Date().toISOString()
+  );
+
+
+  if (
+    s.attendance >=
+    data.settings
+      .attendanceForStar
+  ) {
+
+    s.attendance = 0;
+
+    s.stars++;
+
+
+    showToast(
+      `${s.name} ganhou uma ⭐!`
+    );
+
+  } else {
+
+    showToast(
+      "Presença registrada."
+    );
+
+  }
+
 
   save();
 
-  showView("dashboardView");
-
-  showToast("Todos os dados foram apagados.");
 }
 
-function setupNavigation(){
 
-  const dashboardBtn = $("dashboardBtn");
-  const storeBtn = $("storeBtn");
-  const rulesBtn = $("rulesBtn");
-  const settingsBtn = $("settingsBtn");
+function clearHistory() {
 
-  if(dashboardBtn){
-    dashboardBtn.onclick = () =>
-      showView("dashboardView");
+  const s =
+    data.students.find(
+      x =>
+        x.id ===
+        currentStudentId
+    );
+
+
+  if (
+    s &&
+    confirm(
+      "Limpar o histórico deste aluno?"
+    )
+  ) {
+
+    s.history = [];
+
+    save();
+
+
+    showToast(
+      "Histórico limpo."
+    );
+
   }
 
-  if(storeBtn){
-    storeBtn.onclick = () =>
-      showView("storeView");
-  }
-
-  if(rulesBtn){
-    rulesBtn.onclick = () =>
-      showView("rulesView");
-  }
-
-  if(settingsBtn){
-    settingsBtn.onclick = () =>
-      showView("settingsView");
-  }
 }
 
-function setupButtons(){
 
-  const exportBtn = $("exportBtn");
-  const importBtn = $("importBtn");
-  const resetBtn = $("resetBtn");
+function addProduct() {
 
-  if(exportBtn){
-    exportBtn.onclick = exportBackup;
-  }
+  openModal(
 
-  if(importBtn){
-    importBtn.onclick = openImportTextModal;
-  }
+    "Novo item",
 
-  if(resetBtn){
-    resetBtn.onclick = resetData;
-  }
+    `<div class="form-grid">
+
+      <div class="field">
+
+        <label>Nome</label>
+
+        <input
+          name="name"
+          required
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Ícone</label>
+
+        <input
+          name="icon"
+          value="🎁"
+          maxlength="4"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Preço</label>
+
+        <input
+          name="price"
+          type="number"
+          min="0"
+          step="0.01"
+          value="5"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Estoque</label>
+
+        <input
+          name="stock"
+          type="number"
+          min="0"
+          step="1"
+          value="1"
+        >
+
+      </div>
+
+      <label class="checkbox">
+
+        <input
+          name="active"
+          type="checkbox"
+          checked
+        >
+
+        Item ativo
+
+      </label>
+
+    </div>`,
+
+    f => {
+
+      data.products.push({
+
+        id:
+          uid(),
+
+        name:
+          f.get("name").trim(),
+
+        icon:
+          f.get("icon") || "🎁",
+
+        price:
+          Math.max(
+            0,
+            Number(
+              f.get("price")
+            ) || 0
+          ),
+
+        stock:
+          Math.max(
+            0,
+            parseInt(
+              f.get("stock")
+            ) || 0
+          ),
+
+        active:
+          f.get("active") === "on"
+
+      });
+
+
+      save();
+
+      closeModal();
+
+
+      showToast(
+        "Item adicionado."
+      );
+
+    }
+
+  );
+
+}
+function editProduct(id) {
+
+  const p =
+    data.products.find(
+      x => x.id === id
+    );
+
+
+  if (!p)
+    return;
+
+
+  openModal(
+
+    "Editar item",
+
+    `<div class="form-grid">
+
+      <div class="field">
+
+        <label>Nome</label>
+
+        <input
+          name="name"
+          required
+          value="${escapeHtml(
+            p.name
+          )}"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Ícone</label>
+
+        <input
+          name="icon"
+          value="${escapeHtml(
+            p.icon
+          )}"
+          maxlength="4"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Preço</label>
+
+        <input
+          name="price"
+          type="number"
+          min="0"
+          step="0.01"
+          value="${p.price}"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Estoque</label>
+
+        <input
+          name="stock"
+          type="number"
+          min="0"
+          value="${p.stock}"
+        >
+
+      </div>
+
+      <label class="checkbox">
+
+        <input
+          name="active"
+          type="checkbox"
+          ${
+            p.active
+              ? "checked"
+              : ""
+          }
+        >
+
+        Item ativo
+
+      </label>
+
+    </div>`,
+
+    f => {
+
+      p.name =
+        f.get("name").trim();
+
+
+      p.icon =
+        f.get("icon") || "🎁";
+
+
+      p.price =
+        Math.max(
+          0,
+          Number(
+            f.get("price")
+          ) || 0
+        );
+
+
+      p.stock =
+        Math.max(
+          0,
+          parseInt(
+            f.get("stock")
+          ) || 0
+        );
+
+
+      p.active =
+        f.get("active") === "on";
+
+
+      save();
+
+      closeModal();
+
+
+      showToast(
+        "Item atualizado."
+      );
+
+    }
+
+  );
+
 }
 
-function init(){
 
-  data = normalize(data);
+function deleteProduct(id) {
 
-  setupNavigation();
-  setupButtons();
+  if (
+    confirm(
+      "Excluir este item da loja?"
+    )
+  ) {
 
-  renderAll();
+    data.products =
+      data.products.filter(
+        x => x.id !== id
+      );
+
+
+    save();
+
+
+    showToast(
+      "Item excluído."
+    );
+
+  }
+
 }
 
-document.addEventListener("DOMContentLoaded",init);
+
+function addRule() {
+
+  openModal(
+
+    "Nova regra",
+
+    `<div class="form-grid">
+
+      <div class="field">
+
+        <label>Nome da regra</label>
+
+        <input
+          name="name"
+          required
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Ícone</label>
+
+        <input
+          name="icon"
+          value="💰"
+          maxlength="4"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Valor</label>
+
+        <input
+          name="amount"
+          type="number"
+          step="0.01"
+          min="0"
+          value="5"
+        >
+
+      </div>
+
+      <label class="checkbox">
+
+        <input
+          name="active"
+          type="checkbox"
+          checked
+        >
+
+        Regra ativa
+
+      </label>
+
+    </div>`,
+
+    f => {
+
+      data.rules.push({
+
+        id:
+          uid(),
+
+        name:
+          f.get("name").trim(),
+
+        icon:
+          f.get("icon") || "💰",
+
+        amount:
+          Math.max(
+            0,
+            Number(
+              f.get("amount")
+            ) || 0
+          ),
+
+        active:
+          f.get("active") === "on"
+
+      });
+
+
+      save();
+
+      closeModal();
+
+
+      showToast(
+        "Regra adicionada."
+      );
+
+    }
+
+  );
+
+}
+function editRule(id) {
+
+  const r =
+    data.rules.find(
+      x => x.id === id
+    );
+
+
+  if (!r)
+    return;
+
+
+  openModal(
+
+    "Editar regra",
+
+    `<div class="form-grid">
+
+      <div class="field">
+
+        <label>Nome</label>
+
+        <input
+          name="name"
+          required
+          value="${escapeHtml(
+            r.name
+          )}"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Ícone</label>
+
+        <input
+          name="icon"
+          value="${escapeHtml(
+            r.icon
+          )}"
+          maxlength="4"
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label>Valor</label>
+
+        <input
+          name="amount"
+          type="number"
+          step="0.01"
+          min="0"
+          value="${r.amount}"
+        >
+
+      </div>
+
+      <label class="checkbox">
+
+        <input
+          name="active"
+          type="checkbox"
+          ${
+            r.active
+              ? "checked"
+              : ""
+          }
+        >
+
+        Regra ativa
+
+      </label>
+
+    </div>`,
+
+    f => {
+
+      r.name =
+        f.get("name").trim();
+
+
+      r.icon =
+        f.get("icon") || "💰";
+
+
+      r.amount =
+        Math.max(
+          0,
+          Number(
+            f.get("amount")
+          ) || 0
+        );
+
+
+      r.active =
+        f.get("active") === "on";
+
+
+      save();
+
+      closeModal();
+
+
+      showToast(
+        "Regra atualizada."
+      );
+
+    }
+
+  );
+
+}
+
+
+function deleteRule(id) {
+
+  if (
+    confirm(
+      "Excluir esta regra?"
+    )
+  ) {
+
+    data.rules =
+      data.rules.filter(
+        x => x.id !== id
+      );
+
+
+    save();
+
+
+    showToast(
+      "Regra excluída."
+    );
+
+  }
+
+}
+
+
+function attendanceSettings() {
+
+  openModal(
+
+    "Configurar estrelas",
+
+    `<div class="form-grid">
+
+      <div class="field">
+
+        <label>
+          Presenças necessárias para ganhar 1 estrela
+        </label>
+
+        <input
+          name="count"
+          type="number"
+          min="1"
+          step="1"
+          value="${data.settings.attendanceForStar}"
+        >
+
+      </div>
+
+    </div>`,
+
+    f => {
+
+      data.settings.attendanceForStar =
+        Math.max(
+          1,
+          parseInt(
+            f.get("count")
+          ) || 5
+        );
+
+
+      save();
+
+      closeModal();
+
+
+      showToast(
+        "Configuração atualizada."
+      );
+
+    }
+
+  );
+
+}
+
+
+/* =========================================================
+   EXPORTAÇÃO / IMPORTAÇÃO POR COPIAR E COLAR
+   ========================================================= */
+
+
+function encodeBackup(json) {
+
+  try {
+
+    return btoa(
+      unescape(
+        encodeURIComponent(json)
+      )
+    );
+
+  } catch (e) {
+
+    console.error(
+      "Erro ao codificar backup:",
+      e
+    );
+
+    throw e;
+  }
+
+}
+
+
+function decodeBackup(encoded) {
+
+  try {
+
+    return decodeURIComponent(
+      escape(
+        atob(encoded)
+      )
+    );
+
+  } catch (e) {
+
+    console.error(
+      "Erro ao decodificar backup:",
+      e
+    );
+
+    throw e;
+  }
+
+}
+
+
+function exportBackup() {
+
+  try {
+
+    const payload = {
+
+      ...data,
+
+      exportedAt:
+        new Date().toISOString(),
+
+      app:
+        "Instituto Banka",
+
+      backupVersion:
+        1
+
+    };
+
+
+    const json =
+      JSON.stringify(
+        payload
+      );
+
+
+    const backup =
+      "INSTITUTO_BANKA_BACKUP|" +
+      encodeBackup(json);
+
+
+    const modal =
+      document.createElement(
+        "div"
+      );
+
+
+    modal.className =
+      "backup-modal";
+
+
+    modal.innerHTML = `
+
+      <div
+        class="backup-box"
+        style="
+          width:calc(100% - 30px);
+          max-width:650px;
+          background:#fff;
+          color:#222;
+          border-radius:18px;
+          padding:20px;
+          box-sizing:border-box;
+          box-shadow:0 20px 60px rgba(0,0,0,.35);
+        "
+      >
+
+        <h2>
+          📤 Exportar Backup
+        </h2>
+
+        <p>
+          Copie o código abaixo e guarde-o em um lugar seguro.
+        </p>
+
+        <textarea
+          id="backupExportText"
+          readonly
+          spellcheck="false"
+          style="
+            width:100%;
+            min-height:240px;
+            box-sizing:border-box;
+            padding:12px;
+            border:1px solid #ddd;
+            border-radius:12px;
+            font-size:12px;
+            resize:vertical;
+          "
+        ></textarea>
+
+        <div
+          class="backup-buttons"
+          style="
+            display:flex;
+            gap:10px;
+            margin-top:12px;
+          "
+        >
+
+          <button
+            id="copyBackupBtn"
+            class="primary-btn"
+            type="button"
+          >
+            📋 Copiar Backup
+          </button>
+
+          <button
+            id="closeBackupBtn"
+            class="secondary-btn"
+            type="button"
+          >
+            Fechar
+          </button>
+
+        </div>
+
+      </div>
+
+    `;
+
+
+    modal.style.cssText = `
+      position:fixed;
+      inset:0;
+      z-index:99999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(0,0,0,.65);
+      padding:15px;
+      box-sizing:border-box;
+    `;
+
+
+    document.body.appendChild(
+      modal
+    );
+
+
+    const textarea =
+      document.getElementById(
+        "backupExportText"
+      );
+
+
+    textarea.value =
+      backup;
+
+
+    document
+      .getElementById(
+        "copyBackupBtn"
+      )
+      .onclick =
+      async () => {
+
+        textarea.focus();
+        textarea.select();
+
+
+        try {
+
+          if (
+            navigator.clipboard &&
+            navigator.clipboard.writeText
+          ) {
+
+            await navigator.clipboard
+              .writeText(
+                backup
+              );
+
+          } else {
+
+            document.execCommand(
+              "copy"
+            );
+
+          }
+
+
+          showToast(
+            "Backup copiado!"
+          );
+
+
+        } catch (error) {
+
+          try {
+
+            document.execCommand(
+              "copy"
+            );
+
+
+            showToast(
+              "Backup copiado!"
+            );
+
+          } catch (e) {
+
+            showToast(
+              "Selecione o texto e copie manualmente."
+            );
+
+          }
+
+        }
+
+      };
+
+
+    document
+      .getElementById(
+        "closeBackupBtn"
+      )
+      .onclick =
+      () => {
+
+        modal.remove();
+
+      };
+
+
+    modal.addEventListener(
+      "click",
+      e => {
+
+        if (
+          e.target === modal
+        )
+          modal.remove();
+
+      }
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Erro ao exportar backup:",
+      error
+    );
+
+
+    showToast(
+      "Erro ao criar o backup."
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   IMPORTAÇÃO
+   ========================================================= */
+
+
+function importBackup() {
+
+  const modal =
+    document.createElement(
+      "div"
+    );
+
+
+  modal.className =
+    "backup-modal";
+
+
+  modal.innerHTML = `
+
+    <div
+      class="backup-box"
+      style="
+        width:calc(100% - 30px);
+        max-width:650px;
+        background:#fff;
+        color:#222;
+        border-radius:18px;
+        padding:20px;
+        box-sizing:border-box;
+        box-shadow:0 20px 60px rgba(0,0,0,.35);
+      "
+    >
+
+      <h2>
+        📥 Importar Backup
+      </h2>
+
+      <p>
+        Cole abaixo o código do backup que você exportou anteriormente.
+      </p>
+
+      <textarea
+        id="backupImportText"
+        placeholder="Cole o código do backup aqui..."
+        spellcheck="false"
+        style="
+          width:100%;
+          min-height:240px;
+          box-sizing:border-box;
+          padding:12px;
+          border:1px solid #ddd;
+          border-radius:12px;
+          font-size:12px;
+          resize:vertical;
+        "
+      ></textarea>
+
+      <div
+        class="backup-buttons"
+        style="
+          display:flex;
+          flex-wrap:wrap;
+          gap:10px;
+          margin-top:12px;
+        "
+      >
+
+        <button
+          id="pasteBackupBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          📋 Colar
+        </button>
+
+        <button
+          id="importBackupBtn"
+          class="primary-btn"
+          type="button"
+        >
+          📥 Importar
+        </button>
+
+        <button
+          id="cancelBackupBtn"
+          class="secondary-btn"
+          type="button"
+        >
+          Cancelar
+        </button>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  modal.style.cssText = `
+    position:fixed;
+    inset:0;
+    z-index:99999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,.65);
+    padding:15px;
+    box-sizing:border-box;
+  `;
+
+
+  document.body.appendChild(
+    modal
+  );
+
+
+  const textarea =
+    document.getElementById(
+      "backupImportText"
+    );
+
+
+  setTimeout(
+    () =>
+      textarea.focus(),
+    100
+  );
+
+
+  /*
+     BOTÃO COLAR
+  */
+
+
+  document
+    .getElementById(
+      "pasteBackupBtn"
+    )
+    .onclick =
+    async () => {
+
+      try {
+
+        if (
+          navigator.clipboard &&
+          navigator.clipboard.readText
+        ) {
+
+          const text =
+            await navigator.clipboard
+              .readText();
+
+
+          if (!text) {
+
+            showToast(
+              "A área de transferência está vazia."
+            );
+
+            return;
+          }
+
+
+          textarea.value =
+            text;
+
+
+          showToast(
+            "Backup colado!"
+          );
+
+
+        } else {
+
+          textarea.focus();
+
+          showToast(
+            "Toque e segure no campo para colar."
+          );
+
+        }
+
+      } catch (error) {
+
+        textarea.focus();
+
+        showToast(
+          "Toque e segure no campo para colar."
+        );
+
+      }
+
+    };
+
+
+  /*
+     BOTÃO IMPORTAR
+  */
+
+
+  document
+    .getElementById(
+      "importBackupBtn"
+    )
+    .onclick =
+    () => {
+
+      try {
+
+        let backup =
+          textarea.value.trim();
+
+
+        if (!backup) {
+
+          showToast(
+            "Cole o backup primeiro."
+          );
+
+          textarea.focus();
+
+          return;
+        }
+
+
+        /*
+           Aceita somente o nosso formato.
+        */
+
+
+        if (
+          !backup.startsWith(
+            "INSTITUTO_BANKA_BACKUP|"
+          )
+        ) {
+
+          showToast(
+            "Backup inválido."
+          );
+
+          return;
+        }
+
+
+        const prefix =
+          "INSTITUTO_BANKA_BACKUP|";
+
+
+        const encoded =
+          backup.slice(
+            prefix.length
+          );
+
+
+        if (!encoded) {
+
+          showToast(
+            "Backup vazio."
+          );
+
+          return;
+        }
+
+
+        const json =
+          decodeBackup(
+            encoded
+          );
+
+
+        const importedData =
+          JSON.parse(
+            json
+          );
+
+
+        if (
+          !importedData ||
+          typeof importedData !==
+            "object"
+        ) {
+
+          throw new Error(
+            "Dados inválidos."
+          );
+
+        }
+
+
+        /*
+           Verificação básica para impedir
+           que texto aleatório seja importado.
+        */
+
+
+        if (
+          !Array.isArray(
+            importedData.students
+          ) ||
+
+          !Array.isArray(
+            importedData.products
+          ) ||
+
+          !Array.isArray(
+            importedData.rules
+          )
+        ) {
+
+          throw new Error(
+            "Backup incompatível."
+          );
+
+        }
+
+
+        /*
+           Confirma antes de substituir
+           os dados atuais.
+        */
+
+
+        const confirmed =
+          confirm(
+            "Importar este backup substituirá TODOS os dados atuais deste dispositivo. Continuar?"
+          );
+
+
+        if (!confirmed)
+          return;
+
+
+        /*
+           Normaliza os dados importados.
+        */
+
+
+        data =
+          normalize(
+            importedData
+          );
+
+
+        currentStudentId =
+          null;
+
+
+        /*
+           Salva imediatamente.
+        */
+
+
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(data)
+        );
+
+
+        /*
+           Atualiza a interface.
+        */
+
+
+        renderAll();
+
+
+        /*
+           Fecha a janela.
+        */
+
+
+        modal.remove();
+
+
+        showView(
+          "dashboardView"
+        );
+
+
+        showToast(
+          "Backup importado com sucesso!"
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          "Erro ao importar backup:",
+          error
+        );
+
+
+        showToast(
+          "Não foi possível importar esse backup."
+        );
+
+      }
+
+    };
+
+
+  /*
+     BOTÃO CANCELAR
+  */
+
+
+  document
+    .getElementById(
+      "cancelBackupBtn"
+    )
+    .onclick =
+    () => {
+
+      modal.remove();
+
+    };
+
+
+  /*
+     Clicar fora da caixa fecha.
+  */
+
+
+  modal.addEventListener(
+    "click",
+    e => {
+
+      if (
+        e.target === modal
+      )
+        modal.remove();
+
+    }
+  );
+
+}
+
+
+/*
+   Mantém este nome também para compatibilidade
+   caso alguma parte antiga do HTML use essa função.
+*/
+
+
+function openImportTextModal() {
+
+  importBackup();
+
+}
+
+
+/* =========================================================
+   APAGAR TODOS OS DADOS
+   ========================================================= */
+
+
+function resetData() {
+
+  const firstConfirm =
+    confirm(
+      "ATENÇÃO!\n\nTodos os alunos, saldos, estrelas, presenças, históricos, regras, produtos e estoques serão apagados.\n\nDeseja continuar?"
+    );
+
+
+  if (!firstConfirm)
+    return;
+
+
+  const secondConfirm =
+    confirm(
+      "TEM CERTEZA?\n\nEssa ação não pode ser desfeita. Se quiser manter os dados, exporte um backup antes."
+    );
+
+
+  if (!secondConfirm)
+    return;
+
+
+  try {
+
+    /*
+       Remove completamente os dados
+       antigos do armazenamento.
+    */
+
+
+    localStorage.removeItem(
+      STORAGE_KEY
+    );
+
+
+    /*
+       Cria uma nova estrutura limpa.
+    */
+
+
+    data =
+      cloneDefault();
+
+
+    currentStudentId =
+      null;
+
+
+    /*
+       Salva a nova estrutura vazia.
+    */
+
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(data)
+    );
+
+
+    /*
+       Volta para o início.
+    */
+
+
+    showView(
+      "dashboardView"
+    );
+
+
+    renderAll();
+
+
+    showToast(
+      "Todos os dados foram apagados."
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Erro ao apagar dados:",
+      error
+    );
+
+
+    showToast(
+      "Erro ao apagar os dados."
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   NAVEGAÇÃO
+   ========================================================= */
+
+
+document.addEventListener(
+  "click",
+  e => {
+
+    const go =
+      e.target.closest(
+        "[data-go]"
+      );
+
+
+    if (go) {
+
+      showView(
+        go.dataset.go
+      );
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   BOTÕES
+   ========================================================= */
+
+
+const settingsBtn =
+  $("settingsBtn");
+
+if (settingsBtn) {
+
+  settingsBtn.onclick =
+    () =>
+      showView(
+        "settingsView"
+      );
+
+}
+
+
+const navSettings =
+  $("navSettings");
+
+if (navSettings) {
+
+  navSettings.onclick =
+    () =>
+      showView(
+        "settingsView"
+      );
+
+}
+
+
+const addStudentBtn =
+  $("addStudentBtn");
+
+if (addStudentBtn) {
+
+  addStudentBtn.onclick =
+    addStudent;
+
+}
+
+
+const addProductBtn =
+  $("addProductBtn");
+
+if (addProductBtn) {
+
+  addProductBtn.onclick =
+    addProduct;
+
+}
+
+
+const addRuleBtn =
+  $("addRuleBtn");
+
+if (addRuleBtn) {
+
+  addRuleBtn.onclick =
+    addRule;
+
+}
+
+
+const attendanceSettingsBtn =
+  $("attendanceSettingsBtn");
+
+if (attendanceSettingsBtn) {
+
+  attendanceSettingsBtn.onclick =
+    attendanceSettings;
+
+}
+
+
+const editStudentBtn =
+  $("editStudentBtn");
+
+if (editStudentBtn) {
+
+  editStudentBtn.onclick =
+    () =>
+      editStudent(
+        currentStudentId
+      );
+
+}
+
+
+const clearHistoryBtn =
+  $("clearHistoryBtn");
+
+if (clearHistoryBtn) {
+
+  clearHistoryBtn.onclick =
+    clearHistory;
+
+}
+
+
+const studentSearch =
+  $("studentSearch");
+
+if (studentSearch) {
+
+  studentSearch.addEventListener(
+    "input",
+    renderStudents
+  );
+
+}
+
+
+/* =========================================================
+   EXPORTAR
+   ========================================================= */
+
+
+const exportBtn =
+  $("exportBtn");
+
+if (exportBtn) {
+
+  exportBtn.onclick =
+    exportBackup;
+
+}
+
+
+/* =========================================================
+   IMPORTAR
+   ========================================================= */
+
+
+const importBtn =
+  $("importBtn");
+
+if (importBtn) {
+
+  importBtn.onclick =
+    importBackup;
+
+}
+
+
+/* =========================================================
+   RESET
+   ========================================================= */
+
+
+const resetBtn =
+  $("resetBtn");
+
+if (resetBtn) {
+
+  resetBtn.onclick =
+    resetData;
+
+}
+
+
+/* =========================================================
+   INICIALIZAÇÃO
+   ========================================================= */
+
+
+renderAll();
