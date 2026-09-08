@@ -1944,17 +1944,7 @@ $("studentSearch").addEventListener(
 $("exportBtn").onclick =
   exportBackup;
 
-$("importBtn").onclick =
-  () =>
-    $("importFile").click();
-
-$("importFile").addEventListener(
-  "change",
-  e =>
-    importBackup(
-      e.target.files[0]
-    )
-);
+$("importBtn").onclick = openImportTextModal;
 
 $("resetBtn").onclick =
   resetData;
