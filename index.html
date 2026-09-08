@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#5b4bdb">
+  <title>Instituto Banka</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">INSTITUTO</span>
+        <h1>🏦 Banka</h1>
+      </div>
+      <button class="icon-btn" id="settingsBtn" title="Configurações">⚙️</button>
+    </header>
+
+    <main>
+      <section id="dashboardView" class="view active">
+        <div class="welcome-card">
+          <div>
+            <span class="eyebrow">PAINEL DO PROFESSOR</span>
+            <h2>Instituto Banka</h2>
+            <p>Controle o dinheiro, as recompensas, a loja e as estrelas dos alunos.</p>
+          </div>
+          <div class="bank-symbol">🏦</div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card"><span>👨‍🎓</span><strong id="statStudents">0</strong><small>Alunos</small></div>
+          <div class="stat-card"><span>💰</span><strong id="statMoney">R$ 0,00</strong><small>Em circulação</small></div>
+          <div class="stat-card"><span>⭐</span><strong id="statStars">0</strong><small>Estrelas</small></div>
+          <div class="stat-card"><span>🏪</span><strong id="statProducts">0</strong><small>Itens na loja</small></div>
+        </div>
+
+        <div class="section-heading"><h3>Acesso rápido</h3></div>
+        <div class="quick-grid">
+          <button class="menu-card" data-go="studentsView"><span>👨‍🎓</span><b>Alunos</b><small>Gerenciar alunos</small></button>
+          <button class="menu-card" data-go="storeView"><span>🏪</span><b>Loja</b><small>Itens e estoque</small></button>
+          <button class="menu-card" data-go="attendanceView"><span>⭐</span><b>Presença</b><small>Marcar presença</small></button>
+          <button class="menu-card" data-go="rulesView"><span>💰</span><b>Recompensas</b><small>Regras e valores</small></button>
+        </div>
+      </section>
+
+      <section id="studentsView" class="view">
+        <div class="page-title">
+          <div><span class="eyebrow">GERENCIAMENTO</span><h2>Alunos</h2></div>
+          <button class="primary-btn" id="addStudentBtn">＋ Aluno</button>
+        </div>
+        <input class="search" id="studentSearch" placeholder="🔎 Pesquisar aluno...">
+        <div id="studentsList" class="list"></div>
+      </section>
+
+      <section id="storeView" class="view">
+        <div class="page-title">
+          <div><span class="eyebrow">ECONOMIA</span><h2>Loja</h2></div>
+          <button class="primary-btn" id="addProductBtn">＋ Item</button>
+        </div>
+        <div id="storeList" class="list"></div>
+      </section>
+
+      <section id="rulesView" class="view">
+        <div class="page-title">
+          <div><span class="eyebrow">RECOMPENSAS</span><h2>Regras</h2></div>
+          <button class="primary-btn" id="addRuleBtn">＋ Regra</button>
+        </div>
+        <div id="rulesList" class="list"></div>
+      </section>
+
+      <section id="attendanceView" class="view">
+        <div class="page-title">
+          <div><span class="eyebrow">CONTROLE</span><h2>Presença</h2></div>
+          <button class="secondary-btn" id="attendanceSettingsBtn">⚙️ 5 = ⭐</button>
+        </div>
+        <p class="hint">Toque no botão de presença para registrar uma aula. A cada 5 presenças, o aluno recebe automaticamente uma estrela.</p>
+        <div id="attendanceList" class="list"></div>
+      </section>
+
+      <section id="studentDetailView" class="view">
+        <div class="detail-header">
+          <button class="back-btn" data-back="studentsView">‹</button>
+          <div>
+            <span class="eyebrow">PERFIL DO ALUNO</span>
+            <h2 id="detailName">Aluno</h2>
+          </div>
+          <button class="icon-btn" id="editStudentBtn">✏️</button>
+        </div>
+
+        <div class="balance-card">
+          <span>Saldo atual</span>
+          <strong id="detailBalance">R$ 0,00</strong>
+          <div class="student-stars" id="detailStars">⭐ 0 estrelas</div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Adicionar dinheiro</h3>
+          <div id="detailRules" class="action-grid"></div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Comprar na loja</h3>
+          <div id="detailProducts" class="action-grid"></div>
+        </div>
+
+        <div class="detail-section">
+          <div class="section-heading"><h3>Histórico</h3><button class="text-btn" id="clearHistoryBtn">Limpar</button></div>
+          <div id="detailHistory" class="history"></div>
+        </div>
+      </section>
+
+      <section id="settingsView" class="view">
+        <div class="page-title"><div><span class="eyebrow">SISTEMA</span><h2>Configurações</h2></div></div>
+        <div class="settings-card">
+          <h3>💾 Dados</h3>
+          <p>Faça backup do Instituto Banka ou restaure um backup anterior.</p>
+          <div class="settings-actions">
+            <button class="primary-btn wide" id="exportBtn">📤 Exportar backup</button>
+            <button class="secondary-btn wide" id="importBtn">📥 Importar backup</button>
+            <input type="file" id="importFile" accept=".json,application/json" hidden>
+          </div>
+          <div class="danger-zone">
+            <h3>⚠️ Zona de perigo</h3>
+            <p>Apaga todos os dados salvos neste dispositivo.</p>
+            <button class="danger-btn" id="resetBtn">Apagar todos os dados</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-go="dashboardView">⌂<span>Início</span></button>
+      <button class="nav-btn" data-go="studentsView">👨‍🎓<span>Alunos</span></button>
+      <button class="nav-btn" data-go="storeView">🏪<span>Loja</span></button>
+      <button class="nav-btn" data-go="attendanceView">⭐<span>Presença</span></button>
+      <button class="nav-btn" id="navSettings">⚙️<span>Ajustes</span></button>
+    </nav>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
